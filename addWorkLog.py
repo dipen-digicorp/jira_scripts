@@ -19,54 +19,87 @@ headers = {
     "Content-Type": "application/json"
 }
 
-issue_id = 14733  # SSC-12
+# === CONFIGURABLE SECTION ===
+ssc12_issue_id = 14733       # SSC-12
+leave_issue_id = 11551       # Leave issue
 
-time_spent = "30m"
+regular_time_spent = "30m"
+leave_full_day = "8h"
+leave_half_day = "4h"
+client_call_time_spent = "1h"
+
 comment_text = "Product Standup"
+client_call_comment = "Client Call"
 
+# Dates for October 2025
 start_date = datetime(2025, 10, 1)
 end_date = datetime(2025, 10, 31)
 
-current_date = start_date
+# Specify leave and client call dates
+full_day_leave_dates = [20, 21, 22, 27]   # full-day leave
+half_day_leave_dates = []                 # half-day leave
+client_call_dates = [1, 8, 15, 30]        # client call days
+
 local_tz = pytz.timezone("Asia/Kolkata")
+current_date = start_date
+
+
+def add_worklog(issue_id: int, time_spent: str, comment: str, started_str: str):
+    """Helper to send one worklog"""
+    payload = {
+        "timeSpent": time_spent,
+        "started": started_str,
+        "comment": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": comment}]}
+            ]
+        },
+    }
+
+    url = f"{BASE_URL}/issue/{issue_id}/worklog"
+    response = requests.post(url, headers=headers, auth=auth, data=json.dumps(payload))
+
+    if response.status_code in [200, 201]:
+        print(f"✅ {comment} → {issue_id} ({time_spent})")
+    else:
+        print(f"❌ {comment} → {issue_id} failed: {response.status_code} {response.text}")
+
 
 while current_date <= end_date:
-    # Create timezone-aware datetime for 9 AM IST
     current_date_local = local_tz.localize(datetime(current_date.year, current_date.month, current_date.day, 9, 0))
+    weekday = current_date_local.weekday()
 
-    # Skip Saturday (5) and Sunday (6)
-    if current_date_local.weekday() < 5:
-        current_date_utc = current_date_local.astimezone(pytz.utc)
-        started_str = current_date_utc.strftime("%Y-%m-%dT%H:%M:%S.000%z")
+    if weekday >= 5:
+        current_date += timedelta(days=1)
+        continue
 
-        print("=======================================")
-        print(f"Local Date: {current_date_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')}")
-        print(f"UTC Date:   {current_date_utc.strftime('%Y-%m-%d %H:%M:%S %Z%z')}")
-        print(f"Sent to Jira (started): {started_str}")
-        print(f"Weekday: {current_date_local.weekday()}")
+    day = current_date.day
+    current_date_utc = current_date_local.astimezone(pytz.utc)
+    started_str = current_date_utc.strftime("%Y-%m-%dT%H:%M:%S.000%z")
 
-        payload = {
-            "timeSpent": time_spent,
-            "started": started_str,
-            "comment": {
-                "type": "doc",
-                "version": 1,
-                "content": [
-                    {
-                        "type": "paragraph",
-                        "content": [{"type": "text", "text": comment_text}]
-                    }
-                ]
-            }
-        }
+    print("=======================================")
+    print(f"Date: {current_date.strftime('%Y-%m-%d')} ({['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][weekday]})")
 
-        url = f"{BASE_URL}/issue/{issue_id}/worklog"
-        response = requests.post(url, headers=headers, auth=auth, data=json.dumps(payload))
+    if day in full_day_leave_dates:
+        print("Full-day leave")
+        add_worklog(leave_issue_id, leave_full_day, "Full Day Leave", started_str)
 
-        if response.status_code in [200, 201]:
-            print(f"✅ Worklog added for {current_date_local.strftime('%Y-%m-%d')}")
-        else:
-            print(f"❌ Failed for {current_date_local.strftime('%Y-%m-%d')}: {response.status_code} {response.text}")
-        print("=======================================\n")
+    elif day in half_day_leave_dates:
+        print("→Half-day leave")
+        add_worklog(leave_issue_id, leave_half_day, "Half Day Leave", started_str)
+        add_worklog(ssc12_issue_id, regular_time_spent, comment_text, started_str)
 
+        if day in client_call_dates:
+            add_worklog(ssc12_issue_id, client_call_time_spent, client_call_comment, started_str)
+
+    else:
+        print("Regular working day")
+        add_worklog(ssc12_issue_id, regular_time_spent, comment_text, started_str)
+
+        if day in client_call_dates:
+            add_worklog(ssc12_issue_id, client_call_time_spent, client_call_comment, started_str)
+
+    print("=======================================\n")
     current_date += timedelta(days=1)
