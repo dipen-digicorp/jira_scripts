@@ -25,7 +25,7 @@ time_spent = "30m"
 comment_text = "Product Standup"
 
 start_date = datetime(2025, 10, 1)
-end_date = datetime(2025, 10, 6)
+end_date = datetime(2025, 10, 31)
 
 current_date = start_date
 local_tz = pytz.timezone("Asia/Kolkata")
@@ -36,7 +36,14 @@ while current_date <= end_date:
 
     # Skip Saturday (5) and Sunday (6)
     if current_date_local.weekday() < 5:
-        started_str = current_date_local.strftime("%Y-%m-%dT%H:%M:%S.000%z")
+        current_date_utc = current_date_local.astimezone(pytz.utc)
+        started_str = current_date_utc.strftime("%Y-%m-%dT%H:%M:%S.000%z")
+
+        print("=======================================")
+        print(f"Local Date: {current_date_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')}")
+        print(f"UTC Date:   {current_date_utc.strftime('%Y-%m-%d %H:%M:%S %Z%z')}")
+        print(f"Sent to Jira (started): {started_str}")
+        print(f"Weekday: {current_date_local.weekday()}")
 
         payload = {
             "timeSpent": time_spent,
@@ -54,12 +61,12 @@ while current_date <= end_date:
         }
 
         url = f"{BASE_URL}/issue/{issue_id}/worklog"
-
         response = requests.post(url, headers=headers, auth=auth, data=json.dumps(payload))
 
         if response.status_code in [200, 201]:
-            print(f"Worklog added for {current_date_local.strftime('%Y-%m-%d')}")
+            print(f"✅ Worklog added for {current_date_local.strftime('%Y-%m-%d')}")
         else:
-            print(f"Failed for {current_date_local.strftime('%Y-%m-%d')}: {response.status_code} {response.text}")
+            print(f"❌ Failed for {current_date_local.strftime('%Y-%m-%d')}: {response.status_code} {response.text}")
+        print("=======================================\n")
 
     current_date += timedelta(days=1)
