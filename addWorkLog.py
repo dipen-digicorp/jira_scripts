@@ -36,7 +36,8 @@ start_date = datetime(2025, 10, 1)
 end_date = datetime(2025, 10, 31)
 
 # Specify leave and client call dates
-full_day_leave_dates = [20, 21, 22, 27]   # full-day leave
+public_holidays = [2,20, 21, 22]                    # public holidays
+full_day_leave_dates = [ 27] # full-day leave
 half_day_leave_dates = []                 # half-day leave
 client_call_dates = [1, 8, 15, 30]        # client call days
 
@@ -82,7 +83,10 @@ while current_date <= end_date:
     print("=======================================")
     print(f"Date: {current_date.strftime('%Y-%m-%d')} ({['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][weekday]})")
 
-    if day in full_day_leave_dates:
+    if day in public_holidays:
+        print("Public Holiday")
+
+    elif day in full_day_leave_dates:
         print("Full-day leave")
         add_worklog(leave_issue_id, leave_full_day, "Full Day Leave", started_str)
 
